@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourShield AI - Tourist Edge Device</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        
+        .phone-container { width: 375px; height: 812px; background: #0e1118; border: 12px solid #202430; border-radius: 40px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+        
+        .status-bar { height: 44px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; background: #0e1118; position: relative; }
+        .notch { width: 150px; height: 30px; background: #202430; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 10; }
+        
+        .privacy-toggle-btn {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            background: #111520;
+            border: 1px solid #1f2a3a;
+            color: #6b7280;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s;
+            z-index: 99;
+        }
+        .privacy-toggle-btn.active {
+            background: #ffaa0025;
+            border-color: #ffaa00;
+            color: #ffaa00;
+        }
+        
+        .app-body { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
+        
+        .header { text-align: center; margin: 20px 0; }
+        .header h1 { font-size: 1.5rem; font-weight: 800; color: #00ffaa; letter-spacing: 0.5px; }
+        .header p { font-size: 0.85rem; color: #6b7280; margin-top: 5px; }
+        
+        .sensor-panel { background: #151a24; border: 1px solid #242f3d; border-radius: 16px; padding: 18px; margin-bottom: 20px; }
+        .panel-title { font-size: 0.8rem; font-weight: 700; color: #8a94a6; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 1px; }
+        
+        .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .sensor-item { background: #0a0e14; border: 1px solid #1a222e; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; }
+        .sensor-label { font-size: 0.72rem; color: #6b7280; text-transform: uppercase; font-weight: bold; }
+        .sensor-val { font-size: 1.15rem; font-weight: 800; color: #ffffff; margin-top: 4px; }
+        
+        .edge-box { background: #151a24; border: 1px solid #242f3d; border-radius: 16px; padding: 18px; text-align: center; margin-bottom: 25px; transition: all 0.3s ease; }
+        .edge-box.anomaly { border-color: #ff3355; background: #2f131a; }
+        
+        .edge-status-text { font-size: 1.2rem; font-weight: 800; color: #00ffaa; }
+        .edge-box.anomaly .edge-status-text { color: #ff3355; animation: blink 1.2s infinite; }
+        
+        @keyframes blink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+        
+        .reconstruction-val { font-size: 0.85rem; color: #9ca3af; margin-top: 6px; font-family: monospace; }
+        
+        .control-panel { display: flex; flex-direction: column; gap: 12px; margin-top: auto; padding-bottom: 15px; }
+        .btn { padding: 14px; border-radius: 12px; border: none; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; text-align: center; width: 100%; }
+        
+        .btn-trigger { background: #ffaa00; color: #0a0b10; }
+        .btn-trigger:hover { background: #e69500; transform: scale(0.98); }
+        .btn-trigger:disabled { background: #2d3748; color: #718096; cursor: not-allowed; transform: none; }
+        
+        .btn-transmit { background: #00aaff; color: #fff; border: 1px solid #00aaff30; }
+        .btn-transmit:hover { background: #0088cc; transform: scale(0.98); }
+
+        .studio-panel { background: #1a1e29; border: 1px solid #3b82f640; border-radius: 16px; padding: 18px; margin-top: 20px; display: none; }
+        .studio-title { font-size: 0.85rem; font-weight: bold; color: #3b82f6; text-transform: uppercase; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .studio-row { margin-bottom: 12px; }
+        .studio-label { font-size: 0.75rem; color: #9ca3af; display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .studio-input { width: 100%; height: 6px; background: #0a0e14; border-radius: 5px; appearance: none; outline: none; }
+        .studio-input::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; cursor: pointer; }
+        
+        .btn-studio { background: transparent; color: #3b82f6; border: 1px solid #3b82f640; margin-top: 10px; font-size: 0.75rem; padding: 8px; }
+        
+        .home-bar { height: 5px; width: 140px; background: #333; border-radius: 10px; margin: 8px auto; }
+    </style>
+    <meta name="tourshield-api-token" content="%%TOURSHIELD_API_TOKEN%%">
+    <script>
+      const tourshieldToken = document.currentScript.previousElementSibling.content;
+      const protectedApiPaths = new Set(['/api/trigger_anomaly', '/api/toggle_privacy', '/api/notify_police']);
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const pathname = new URL(url, window.location.origin).pathname;
+        if (!protectedApiPaths.has(pathname)) return nativeFetch(input, init);
+        const headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined));
+        headers.set('Authorization', `Bearer ${tourshieldToken}`);
+        return nativeFetch(input, { ...init, headers });
+      };
+    </script>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="notch"></div>
+        <button class="privacy-toggle-btn" id="privacy-btn" onclick="toggleLocationPrivacy()">🔒 Location Secrecy: OFF</button>
+        <div class="status-bar">
+            <span id="phone-time">19:08</span>
+            <span style="letter-spacing: 1px;">LTE 📶 100%🔋</span>
+        </div>
+        
+        <div class="app-body">
+            <div class="header">
+                <h1>TOURSHIELD EDGE AI</h1>
+                <p>Personal Security Transceiver</p>
+                <div style="font-size: 0.72rem; color: #9ca3af; background: #1a222e; padding: 4px 10px; border-radius: 20px; width: fit-content; margin: 10px auto 0;">
+                    Device ID: <span id="device-id" style="font-weight: bold; color: #00ffaa;">TS-101 (VIP)</span>
+                </div>
+            </div>
+            
+            <div class="sensor-panel">
+                <div class="panel-title">LIVE GPS / INERTIAL SAMPLING</div>
+                <div class="sensor-grid">
+                    <div class="sensor-item"><span class="sensor-label">Avg Speed</span><span class="sensor-val" id="val-speed">1.42 m/s</span></div>
+                    <div class="sensor-item"><span class="sensor-label">Inactivity</span><span class="sensor-val" id="val-inactivity">0s</span></div>
+                    <div class="sensor-item"><span class="sensor-label">Path Drift</span><span class="sensor-val" id="val-deviation">3m</span></div>
+                    <div class="sensor-item"><span class="sensor-label">Zone Level</span><span class="sensor-val" id="val-zone">0 (Safe)</span></div>
+                </div>
+            </div>
+            
+            <div class="edge-box" id="edge-box">
+                <div class="panel-title">ON-DEVICE GRU-VAE RECONSTRUCTION</div>
+                <div class="edge-status-text" id="edge-status">EDGE PROTECTED</div>
+                <div class="reconstruction-val" id="val-recon">Error MSE: 0.0000</div>
+            </div>
+            
+            <div class="control-panel">
+                <button class="btn btn-trigger" id="btn-trigger" onclick="triggerDeviceAnomaly()">Simulate Cliff Anomaly</button>
+                <button class="btn btn-transmit" onclick="transmitLTEAlert()">Transmit Manual Emergency</button>
+                <button class="btn btn-studio" onclick="toggleStudio()">Open Custom Anomaly Studio</button>
+            </div>
+
+            <div class="studio-panel" id="studio-panel">
+                <div class="studio-title">
+                    <span>Anomaly Studio</span>
+                    <span style="color: #6b7280; cursor: pointer;" onclick="toggleStudio()">✕</span>
+                </div>
+                
+                <div class="studio-row">
+                    <div class="studio-label"><span>Inactivity</span><span id="lbl-inact">0s</span></div>
+                    <input type="range" class="studio-input" id="inp-inact" min="0" max="150" value="0" oninput="updateLbl('lbl-inact', this.value + 's')">
+                </div>
+                
+                <div class="studio-row">
+                    <div class="studio-label"><span>Path Deviation</span><span id="lbl-dev">0m</span></div>
+                    <input type="range" class="studio-input" id="inp-dev" min="0" max="100" value="5" oninput="updateLbl('lbl-dev', this.value + 'm')">
+                </div>
+
+                <div class="studio-row">
+                    <div class="studio-label"><span>Zone Risk</span><span id="lbl-zone-studio">Safe</span></div>
+                    <input type="range" class="studio-input" id="inp-zone" min="0" max="2" value="0" oninput="updateZoneLbl(this.value)">
+                </div>
+
+                <button class="btn btn-transmit" style="margin-top: 10px; background: #3b82f6; font-size: 0.8rem;" onclick="injectCustomAnomaly()">Inject Custom Vector</button>
+            </div>
+        </div>
+        
+        <div class="home-bar"></div>
+    </div>
+
+    <script>
+        const deviceId = 'TS-101';
+        let isPrivacyModeEnabled = false;
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('phone-time').textContent = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        }
+
+        function updatePrivacyUI() {
+            const btn = document.getElementById('privacy-btn');
+            if (isPrivacyModeEnabled) {
+                btn.className = 'privacy-toggle-btn active';
+                btn.textContent = '🔒 Location Secrecy: ON';
+            } else {
+                btn.className = 'privacy-toggle-btn';
+                btn.textContent = '🔒 Location Secrecy: OFF';
+            }
+        }
+
+        function toggleLocationPrivacy() {
+            isPrivacyModeEnabled = !isPrivacyModeEnabled;
+            updatePrivacyUI();
+
+            fetch('/api/toggle_privacy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: deviceId,
+                    enabled: isPrivacyModeEnabled
+                })
+            });
+        }
+
+        function init() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            fetch(`/api/privacy_status/${deviceId}`)
+                .then(res => res.json())
+                .then(data => {
+                    isPrivacyModeEnabled = data.enabled;
+                    updatePrivacyUI();
+                });
+            
+            setInterval(pollDeviceStatus, 2000);
+            setInterval(fetchHandsetAlerts, 2000);
+            pollDeviceStatus();
+            fetchHandsetAlerts();
+        }
+
+        window.addEventListener('load', init);
+
+        function pollDeviceStatus() {
+            fetch('/api/tourists')
+                .then(res => res.json())
+                .then(data => {
+                    const agent = data[deviceId];
+                    if (agent) {
+                        document.getElementById('val-speed').textContent = agent.latest_features.avg_speed.toFixed(1) + ' m/s';
+                        document.getElementById('val-inactivity').textContent = Math.round(agent.latest_features.inactivity_duration) + 's';
+                        document.getElementById('val-deviation').textContent = Math.round(agent.latest_features.route_deviation) + 'm';
+                        
+                        let zoneLabel = 'Safe';
+                        if (agent.latest_features.zone_level === 1) zoneLabel = 'Warning';
+                        if (agent.latest_features.zone_level === 2) zoneLabel = 'Danger';
+                        document.getElementById('val-zone').textContent = zoneLabel;
+
+                        const isAnom = agent.edge_evaluation.is_anomaly;
+                        const edgeBox = document.getElementById('edge-box');
+                        const edgeStatus = document.getElementById('edge-status');
+                        const edgeRecon = document.getElementById('val-recon');
+
+                        edgeRecon.textContent = 'Error MSE: ' + agent.edge_evaluation.reconstruction_error.toFixed(4);
+
+                        if (isAnom) {
+                            edgeBox.className = 'edge-box anomaly';
+                            edgeStatus.textContent = '🚨 ANOMALY DETECTED';
+                            document.getElementById('btn-trigger').disabled = true;
+                        } else {
+                            edgeBox.className = 'edge-box';
+                            edgeStatus.textContent = 'EDGE PROTECTED';
+                            document.getElementById('btn-trigger').disabled = false;
+                        }
+                    }
+                })
+                .catch(err => console.error('Error polling edge transceiver:', err));
+        }
+
+        function fetchHandsetAlerts() {
+            fetch(`/api/handset_alerts/${deviceId}`)
+                .then(res => res.json())
+                .then(alerts => {
+                    if (alerts.length > 0) {
+                        alerts.forEach(alert => {
+                            if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+                            const originalBg = document.body.style.background;
+                            document.body.style.background = '#ff0000';
+                            setTimeout(() => { document.body.style.background = originalBg; }, 300);
+                            const edgeBox = document.getElementById('edge-box');
+                            const originalEdgeBg = edgeBox.style.backgroundColor;
+                            edgeBox.style.backgroundColor = '#ff0000';
+                            setTimeout(() => { edgeBox.style.backgroundColor = originalEdgeBg; }, 600);
+                        });
+                    }
+                })
+                .catch(err => console.error('Error fetching handset alerts:', err));
+        }
+
+        function triggerDeviceAnomaly() {
+            fetch('/api/trigger_anomaly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: deviceId,
+                    anomaly_type: 'restricted_zone_inactivity'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('Cliff Anomaly Activated! Handset VAE error will spike, triggering LTE emergency alert.');
+                pollDeviceStatus();
+            });
+        }
+
+        function transmitLTEAlert() {
+            fetch('/api/trigger_anomaly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: deviceId,
+                    anomaly_type: 'route_deviation'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('Manual Emergency Broadcast Transmitted over LTE Uplink.');
+                pollDeviceStatus();
+            });
+        }
+
+        function toggleStudio() {
+            const panel = document.getElementById('studio-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function updateLbl(id, text) {
+            document.getElementById(id).textContent = text;
+        }
+
+        function updateZoneLbl(val) {
+            const lbl = document.getElementById('lbl-zone-studio');
+            if (val == '0') lbl.textContent = 'Safe';
+            else if (val == '1') lbl.textContent = 'Warning';
+            else if (val == '2') lbl.textContent = 'Danger';
+        }
+
+        function injectCustomAnomaly() {
+            const inactivity = parseFloat(document.getElementById('inp-inact').value);
+            const deviation = parseFloat(document.getElementById('inp-dev').value);
+            const zone = parseFloat(document.getElementById('inp-zone').value);
+            
+            fetch('/api/trigger_anomaly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: deviceId,
+                    anomaly_type: 'custom',
+                    custom_features: {
+                        speed: 1.4,
+                        inactivity: inactivity,
+                        deviation: deviation,
+                        direction_changes: 0,
+                        zone_level: zone
+                    }
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('Custom feature vector injected! Awaiting edge evaluation...');
+                toggleStudio();
+            })
+            .catch(err => console.error('Error injecting custom anomaly:', err));
+        }
+    </script>
+</body>
+</html>

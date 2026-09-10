@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourShield AI - Central Intelligence Center</title>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #060608; color: #f0f2f5; height: 100vh; overflow: hidden; }
+        
+        .layout { display: flex; height: 100vh; width: 100vw; }
+        
+        /* Resizer handles */
+        .resizer {
+            width: 4px;
+            cursor: col-resize;
+            background: #1a1e29;
+            transition: background 0.2s;
+            z-index: 100;
+        }
+        .resizer:hover, .resizer.dragging {
+            background: #00ffaa;
+        }
+        .h-resizer {
+            height: 4px;
+            cursor: row-resize;
+            background: #1a1e29;
+            transition: background 0.2s;
+        }
+        .h-resizer:hover, .h-resizer.dragging {
+            background: #00ffaa;
+        }
+        .h-resizer {
+            height: 4px;
+            cursor: row-resize;
+            background: #1a1e29;
+            transition: background 0.2s;
+        }
+        .h-resizer:hover, .h-resizer.dragging {
+            background: #00ffaa;
+        }
+        
+        /* Sidebar styles */
+        .sidebar { width: 380px; min-width: 300px; max-width: 600px; background: #0c0d12; border-right: 1px solid #1a1e29; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 25px 20px; border-bottom: 1px solid #1a1e29; display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-header h1 { font-size: 1.3rem; color: #00ffaa; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+        .system-status { font-size: 0.75rem; background: #00ffaa15; color: #00ffaa; padding: 4px 8px; border-radius: 4px; border: 1px solid #00ffaa30; }
+        
+        .tourist-list { flex: 1; overflow-y: auto; padding: 15px; }
+        .list-title { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; margin-bottom: 15px; font-weight: 600; letter-spacing: 1.5px; }
+        
+        .tourist-card { background: #12151f; border: 1px solid #1e2436; border-radius: 8px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; }
+        .tourist-card:hover { border-color: #00ffaacf; background: #151a29; transform: translateY(-2px); }
+        .tourist-card.selected { border-color: #00aaff; background: #141b30; }
+        .tourist-card.selected::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #00aaff; }
+        .tourist-card.anomalous { border-color: #ff3355; background: #24131a; }
+        .tourist-card.anomalous::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ff3355; animation: blink 1.5s infinite; }
+        .tourist-card.privacy-mode { border-color: #ffaa00; background: #1a1810; }
+        .tourist-card.privacy-mode::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ffaa00; }
+        
+        @keyframes blink { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .card-name { font-weight: 600; font-size: 0.95rem; color: #ffffff; }
+        .card-status { font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+        
+        .status-safe { background: #00ffaa15; color: #00ffaa; border: 1px solid #00ffaa25; }
+        .status-warn { background: #ffaa0015; color: #ffaa00; border: 1px solid #ffaa0025; }
+        .status-danger { background: #ff335515; color: #ff3355; border: 1px solid #ff335525; animation: pulse-border 2s infinite; }
+        .status-privacy { background: #ffaa0015; color: #ffaa00; border: 1px solid #ffaa0025; }
+        
+        @keyframes pulse-border { 0% { box-shadow: 0 0 0 0 rgba(255, 51, 85, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(255, 51, 85, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 51, 85, 0); } }
+        
+        .card-features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; color: #9ca3af; }
+        .feature-box { background: #0a0b10; padding: 6px 10px; border-radius: 4px; border: 1px solid #141724; }
+        .feat-val { font-weight: bold; color: #ffffff; margin-top: 2px; }
+        .privacy-indicator { grid-column: span 2; background: #1a1810 !important; border-color: #ffaa0030 !important; color: #ffaa00; font-weight: 600; text-align: center; padding: 8px !important; }
+        
+        /* Main workspace */
+        .workspace { flex: 1; display: flex; flex-direction: column; }
+        .workspace-header { height: 70px; background: #0c0d12; border-bottom: 1px solid #1a1e29; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; }
+        .workspace-header h2 { font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .workspace-header h2::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #00ffaa; border-radius: 50%; box-shadow: 0 0 8px #00ffaa; }
+        
+        .map-section { flex: 1; position: relative; display: flex; flex-direction: column; }
+        #map { flex: 1; width: 100%; height: 100%; }
+        
+        /* Intelligence & Action Panel */
+        .control-panel { height: 350px; background: #0c0d12; border-top: 1px solid #1a1e29; display: flex; overflow: hidden; }
+        .panel-column { flex: 1; border-right: 1px solid #1a1e29; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
+        .panel-column:last-child { border-right: none; }
+        .column-title { font-size: 0.8rem; font-weight: 700; color: #8a94a6; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; }
+        
+        /* Alerts styling */
+        .alert-card { background: #24131a; border: 1px solid #ff335540; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid #ff3355; }
+        .alert-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 4px 0; border-bottom: 1px solid #3d202d; }
+        .alert-row:last-child { border-bottom: none; }
+        .alert-label { color: #fca5a5; }
+        .alert-value { font-weight: bold; color: #ffffff; }
+        
+        /* Gemini box */
+        .gemini-content { background: #0a1324; border: 1px solid #3b82f630; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #3b82f6; }
+        .gemini-text { font-size: 0.88rem; line-height: 1.5; color: #93c5fd; }
+        .gemini-threat { font-weight: bold; color: #ffffff; text-transform: uppercase; background: #2563eb40; padding: 3px 8px; border-radius: 4px; display: inline-block; font-size: 0.75rem; width: fit-content; }
+        .gemini-action-box { display: flex; gap: 10px; margin-top: 10px; }
+        
+        /* Buttons */
+        .btn { padding: 10px 16px; border-radius: 5px; font-weight: 600; font-size: 0.82rem; cursor: pointer; border: none; transition: all 0.2s ease; width: 100%; text-transform: uppercase; }
+        .btn-dispatch { background: #ff3355; color: #ffffff; }
+        .btn-dispatch:hover { background: #e02447; transform: translateY(-1px); }
+        .btn-warning { background: #ffaa00; color: #000; margin-top: 10px; }
+        .btn-warning:hover { background: #e69500; }
+        .btn-secondary { background: #1e2436; color: #9ca3af; border: 1px solid #2d374f; }
+        .btn-secondary:hover { background: #262e45; color: #ffffff; }
+        
+        .map-tools {
+            position: absolute;
+            top: 80px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .tool-btn {
+            background: #12151f;
+            color: #fff;
+            border: 1px solid #1e2436;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .tool-btn:hover { background: #1a1e29; border-color: #00ffaa; }
+        .tool-btn.active { background: #00ffaa20; border-color: #00ffaa; color: #00ffaa; }
+        
+        /* Dispatch logs */
+        .dispatch-item { background: #11141d; border: 1px solid #1e2436; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #ff3355; font-size: 0.8rem; }
+        .dispatch-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: bold; }
+        .dispatch-meta { color: #8a94a6; display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.75rem; }
+        
+        .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #4b5563; gap: 10px; font-size: 0.85rem; text-align: center; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #0c0d12; }
+        ::-webkit-scrollbar-thumb { background: #1a1e29; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d374f; }
+    </style>
+    <meta name="tourshield-api-token" content="%%TOURSHIELD_API_TOKEN%%">
+    <script>
+      // Attach the prototype bearer token only to state-changing API requests.
+      const tourshieldToken = document.currentScript.previousElementSibling.content;
+      const protectedApiPaths = new Set(['/api/trigger_anomaly', '/api/toggle_privacy', '/api/notify_police', '/api/update_geofences', '/api/update_path', '/api/clear_drawings', '/api/send_handset_alert', '/api/alert_all_in_danger']);
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const pathname = new URL(url, window.location.origin).pathname;
+        if (!protectedApiPaths.has(pathname)) return nativeFetch(input, init);
+        const headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined));
+        headers.set('Authorization', `Bearer ${tourshieldToken}`);
+        return nativeFetch(input, { ...init, headers });
+      };
+    </script>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>TourShield CIC</h1>
+                <span class="system-status">LTE ONLINE</span>
+            </div>
+            <div class="tourist-list">
+                <div class="list-title">Live Handsets Stream</div>
+                <div id="tourists-container">
+                    <div class="empty-state">Establishing secure connection...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer Handle -->
+        <div class="resizer" id="resizer"></div>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <div class="workspace-header">
+                <h2>TACTICAL PATROL MONITORING MATRIX - NORTH GOA CLIFF AREA</h2>
+                <div id="connection-clock" style="font-family: monospace; font-size: 0.9rem; color: #8a94a6;">00:00:00</div>
+            </div>
+            
+            <div class="map-section">
+                <div id="map"></div>
+                <div class="map-tools">
+                    <button class="tool-btn" id="btn-draw-fence">Draw Restricted Geofence</button>
+                    <button class="tool-btn" id="btn-draw-path">Draw Custom Route for Selected</button>
+                    <button class="tool-btn" id="btn-clear-drawings" style="border-color: #ff335530; color: #ff3355;">Clear Map Drawings</button>
+            </div>
+        </div>
+
+        <!-- Horizontal Resizer Handle -->
+        <div class="h-resizer" id="h-resizer"></div>
+
+        <!-- Lower Command & Suggestion Panel -->
+        <div class="control-panel">
+                <!-- Column 1: Local Edge Anomaly Alert -->
+                <div class="panel-column">
+                    <div class="column-title">
+                        <span>🚨 EDGE ANOMALY ALERT (SIMULATED LTE)</span>
+                    </div>
+                    <div id="alert-target" class="empty-state">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>No threat warnings transmitted. Real-time edge stream active.</span>
+                    </div>
+                </div>
+                
+                <!-- Column 2: Gemini AI Decision Engine -->
+                <div class="panel-column">
+                    <div class="column-title">🤖 GEMINI AI DECISION SUPPORT</div>
+                    <div id="decision-target" class="empty-state">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                        <span>Awaiting anomaly vector payload for LLM reasoning analysis.</span>
+                    </div>
+                </div>
+                
+                <!-- Column 3: Police Dispatch logs -->
+                <div class="panel-column" style="max-width: 400px;">
+                    <div class="column-title">COASTAL DEFENSE DISPATCH LOGS</div>
+                    <div id="dispatch-target" style="flex: 1; overflow-y: auto;">
+                        <div class="empty-state">No dispatches deployed in this shift.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // XSS prevention helper
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        const map = L.map('map').setView([15.4989, 73.8278], 15);
+        
+        // Detailed OpenStreetMap layer for streets and places
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Satellite layer for "views"
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community'
+        });
+        
+        // Layer control
+        const baseMaps = {
+            "Streets": osmLayer,
+            "Satellite": satelliteLayer
+        };
+        L.control.layers(baseMaps).addTo(map);
+        
+        // Sidebar Resizer Logic
+        const sidebar = document.querySelector('.sidebar');
+        const resizer = document.getElementById('resizer');
+        let isDragging = false;
+        
+        // Drawing tool tracker
+        let currentDrawingTool = null;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            resizer.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const newWidth = e.clientX;
+            if (newWidth >= 300 && newWidth <= 600) {
+                sidebar.style.width = `${newWidth}px`;
+                map.invalidateSize();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            resizer.classList.remove('dragging');
+            document.body.style.cursor = 'default';
+            map.invalidateSize();
+        });
+        
+        // Horizontal Resizer Logic (between map and control panel)
+        const hResizer = document.getElementById('h-resizer');
+        let hIsDragging = false;
+        
+        hResizer.addEventListener('mousedown', (e) => {
+            hIsDragging = true;
+            hResizer.classList.add('dragging');
+            document.body.style.cursor = 'row-resize';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!hIsDragging) return;
+            
+            const newHeight = e.clientY - document.querySelector('.workspace').getBoundingClientRect().top;
+            const workspaceHeight = document.querySelector('.workspace').clientHeight;
+            const minHeight = 100; // Minimum height for map section
+            const maxHeight = workspaceHeight - 100; // Minimum height for control panel
+            
+            if (newHeight >= minHeight && newHeight <= maxHeight) {
+                const mapSection = document.querySelector('.map-section');
+                const controlPanel = document.querySelector('.control-panel');
+                
+                mapSection.style.height = `${newHeight}px`;
+                controlPanel.style.height = `${workspaceHeight - newHeight}px`;
+                
+                map.invalidateSize();
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (hIsDragging) {
+                hIsDragging = false;
+                hResizer.classList.remove('dragging');
+                document.body.style.cursor = 'default';
+                map.invalidateSize();
+            }
+        });
+        
+        const markers = {};
+        const polylines = {};
+        const paths = {};
+        let currentSelected = 'TS-101';
+        let previousAnomalies = new Set();
+        let latestTouristData = {};
+
+        function tickClock() {
+            document.getElementById('connection-clock').textContent = new Date().toLocaleTimeString();
+        }
+        setInterval(tickClock, 1000);
+        tickClock();
+
+        function loadData() {
+            fetch('/api/tourists')
+                .then(res => res.json())
+                .then(data => {
+                    latestTouristData = data;
+                    renderTouristsList(data);
+                    updateMapMarkers(data);
+                    checkForLTEAlerts(data);
+                })
+                .catch(err => console.error('Error fetching state:', err));
+        }
+
+        function renderTouristsList(data) {
+            const container = document.getElementById('tourists-container');
+            container.innerHTML = '';
+
+            Object.keys(data).forEach(id => {
+                const agent = data[id];
+                const card = document.createElement('div');
+                const isAnom = agent.edge_evaluation.is_anomaly;
+                const isPrivate = !agent.isExact;
+                
+                card.className = `tourist-card ${id === currentSelected ? 'selected' : ''} ${isAnom ? 'anomalous' : ''} ${isPrivate ? 'privacy-mode' : ''}`;
+                
+                let statusLabel = 'NORMAL';
+                let statusClass = 'status-safe';
+                if (isAnom) {
+                    statusLabel = 'ANOMALY DETECTED';
+                    statusClass = 'status-danger';
+                } else if (agent.latest_features.route_deviation > 30) {
+                    statusLabel = 'DEV WARNING';
+                    statusClass = 'status-warn';
+                } else if (isPrivate) {
+                    statusLabel = 'LOCATION PROTECTED';
+                    statusClass = 'status-privacy';
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-name">${agent.name} (${id})</span>
+                        <span class="card-status ${statusClass}">${statusLabel}</span>
+                    </div>
+                    <div class="card-features">
+                        <div class="feature-box">Speed: <div class="feat-val">${agent.latest_features.avg_speed} m/s</div></div>
+                        <div class="feature-box">Inactivity: <div class="feat-val">${agent.latest_features.inactivity_duration}s</div></div>
+                        <div class="feature-box">Deviation: <div class="feat-val">${agent.latest_features.route_deviation}m</div></div>
+                        <div class="feature-box">Zone Level: <div class="feat-val">${agent.latest_features.zone_level}</div></div>
+                        ${!agent.isExact ? `<div class="feature-box privacy-indicator">🔒 ${agent.privacyMode} (~${agent.accuracyMeters}m)</div>` : ''}
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    currentSelected = id;
+                    document.querySelectorAll('.tourist-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    
+                    // Center map ONLY if tourist is visible
+                    if (markers[id]) {
+                        map.setView(markers[id].getLatLng(), 16);
+                    }
+                    
+                    // Force update anomaly/gemini panels for the selected user
+                    if (agent.edge_evaluation.is_anomaly) {
+                        triggerVisualAlert(id, agent);
+                    } else {
+                        // Clear panels if not anomalous
+                        document.getElementById('alert-target').innerHTML = `
+                            <div class="empty-state">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                <span>No threat warnings for ${id}.</span>
+                            </div>`;
+                        document.getElementById('decision-target').innerHTML = `
+                            <div class="empty-state">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                                <span>Awaiting anomaly vector for ${id}.</span>
+                            </div>`;
+                    }
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        function updateMapMarkers(data) {
+            Object.keys(data).forEach(id => {
+                const agent = data[id];
+                const loc = [agent.latitude, agent.longitude];
+                const isExact = agent.isExact === true;
+                const privacyMode = agent.privacyMode || 'EXACT';
+                const privacyBanner = agent.privacyBanner;
+
+                if (!paths[id]) {
+                    paths[id] = [];
+                }
+                paths[id].push(loc);
+                if (paths[id].length > 40) paths[id].shift();
+
+                const isAnom = agent.edge_evaluation.is_anomaly;
+                const color = isAnom ? '#ff3355' : (agent.latest_features.route_deviation > 30 ? '#ffaa00' : '#00ffaa');
+
+                if (!markers[id]) {
+                    // Create marker with privacy-aware styling
+                    const markerOptions = {
+                        radius: isExact ? 10 : 16,  // Larger radius for approximate
+                        fillColor: color,
+                        color: isExact ? '#fff' : '#ffaa00',  // Gold border for privacy mode
+                        weight: isExact ? 2.5 : 3,
+                        opacity: 1,
+                        fillOpacity: isExact ? 0.95 : 0.7,
+                        dashArray: isExact ? null : '8, 8'  // Dashed border for approximate
+                    };
+                    
+                    markers[id] = L.circleMarker(loc, markerOptions).addTo(map);
+                    
+                    const tooltipText = agent.privacyBanner 
+                        ? `${agent.name} (${id}) - ${agent.privacyMode} (${agent.accuracyMeters}m accuracy)`
+                        : `${agent.name} (${id})`;
+                    markers[id].bindTooltip(tooltipText, { permanent: true, className: 'custom-tooltip', direction: 'top' });
+                } else {
+                    markers[id].setLatLng(loc);
+                    // Update style if privacy mode changed
+                    const newOptions = {
+                        radius: agent.isExact ? 10 : 16,
+                        fillColor: color,
+                        color: agent.isExact ? '#fff' : '#ffaa00',
+                        weight: agent.isExact ? 2.5 : 3,
+                        fillOpacity: agent.isExact ? 0.95 : 0.7,
+                        dashArray: agent.isExact ? null : '8, 8'
+                    };
+                    markers[id].setLatLng(loc);
+                    markers[id].setStyle(newOptions);
+                }
+
+                // Render polyline
+                if (polylines[id]) {
+                    map.removeLayer(polylines[id]);
+                }
+                polylines[id] = L.polyline(paths[id], {
+                    color: color,
+                    weight: 3,
+                    opacity: 0.6,
+                    dashArray: agent.isExact ? (isAnom ? '5, 5' : null) : '10, 10'  // Dashed path for privacy mode
+                }).addTo(map);
+            });
+            map.invalidateSize();
+        }
+
+        function checkForLTEAlerts(data) {
+            let activeAnomalyFound = false;
+
+            Object.keys(data).forEach(id => {
+                const agent = data[id];
+                const isAnom = agent.edge_evaluation.is_anomaly;
+
+                // Alerts only process if tourist has exact coordinates (not in privacy mode)
+                if (isAnom && agent.isExact) {
+                    activeAnomalyFound = true;
+                    if (!previousAnomalies.has(id)) {
+                        previousAnomalies.add(id);
+                        triggerVisualAlert(id, agent);
+                    }
+                } else {
+                    previousAnomalies.delete(id);
+                }
+            });
+
+            if (!activeAnomalyFound) {
+                document.getElementById('alert-target').innerHTML = `
+                    <div class="empty-state">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>No threat warnings transmitted. Real-time edge stream active.</span>
+                    </div>
+                `;
+                document.getElementById('decision-target').innerHTML = `
+                    <div class="empty-state">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                        <span>Awaiting anomaly vector payload for LLM reasoning analysis.</span>
+                    </div>
+                `;
+            }
+        }
+
+        function triggerVisualAlert(id, agent) {
+            const target = document.getElementById('alert-target');
+            const eval = agent.edge_evaluation;
+
+            target.innerHTML = `
+                <div class="alert-card">
+                    <div style="font-weight: bold; font-size: 1rem; color: #ff3355; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                        <span>🚨 LTE WARNING TRIGGERED</span>
+                    </div>
+                    <div class="alert-row"><span class="alert-label">Source ID:</span><span class="alert-value">${id}</span></div>
+                    <div class="alert-row"><span class="alert-label">Reconstruction Error:</span><span class="alert-value" style="color: #ff3355;">${eval.reconstruction_error.toFixed(3)}</span></div>
+                    <div class="alert-row"><span class="alert-label">Standard Threshold:</span><span class="alert-value">${eval.threshold}</span></div>
+                    <div style="margin-top: 10px; font-weight: 700; font-size: 0.78rem; color: #8a94a6;">CRITICAL FEATURES INVOLVED:</div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 5px;">
+                        ${Object.keys(eval.feature_breakdown).map(feat => {
+                            const item = eval.feature_breakdown[feat];
+                            const contr = (item.deviation_ratio * 100).toFixed(0);
+                            if (contr > 15) {
+                                return `<div style="background: #2f131a; padding: 5px 10px; border-radius: 4px; display: flex; justify-content: space-between; font-size: 0.75rem;">
+                                    <span style="color: #fca5a5;">${feat}</span>
+                                    <span style="color: #ff3355; font-weight: bold;">${contr}% contrib</span>
+                                </div>`;
+                            }
+                            return '';
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Auto fetch Gemini AI recommendation
+            const decisionTarget = document.getElementById('decision-target');
+            decisionTarget.innerHTML = `<div class="empty-state">Running Gemini neural reasoning...</div>`;
+
+            fetch('/api/gemini_decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: id,
+                    anomaly_data: eval,
+                    location_name: "Goa Coastal Defense Sector 4"
+                })
+            })
+            .then(res => res.json())
+            .then(decision => {
+                // Create container for safety
+                const container = document.createElement('div');
+                container.className = 'gemini-content';
+                
+                const threatSpan = document.createElement('span');
+                threatSpan.className = 'gemini-threat';
+                threatSpan.textContent = decision.primary_threat_type;
+                
+                const analysisPara = document.createElement('p');
+                analysisPara.className = 'gemini-text';
+                analysisPara.innerHTML = `<strong>Analysis:</strong> ${escapeHtml(decision.risk_assessment)}`;
+                
+                const recommendationPara = document.createElement('p');
+                recommendationPara.className = 'gemini-text';
+                recommendationPara.innerHTML = `<strong>Recommendation:</strong> ${escapeHtml(decision.recommended_decision)}`;
+                
+                const actionBox = document.createElement('div');
+                actionBox.className = 'gemini-action-box';
+                
+                // Dispatch button
+                const dispatchBtn = document.createElement('button');
+                dispatchBtn.className = 'btn btn-dispatch';
+                dispatchBtn.textContent = 'Dispatch Tactical Patrol';
+                dispatchBtn.addEventListener('click', () => {
+                    const name = latestTouristData[id]?.name || id;
+                    notifyPolice(id, decision.primary_threat_type, decision.recommended_decision, decision.police_dispatch_message, name);
+                });
+                
+                // Check-in button
+                const checkinBtn = document.createElement('button');
+                checkinBtn.className = 'btn btn-warning';
+                checkinBtn.textContent = 'Send Check-in to Handset';
+                checkinBtn.addEventListener('click', () => sendHandsetAlert(id));
+                
+                // Alert all button
+                const alertAllBtn = document.createElement('button');
+                alertAllBtn.className = 'btn btn-secondary';
+                alertAllBtn.style.borderColor = '#ffaa0050';
+                alertAllBtn.style.color = '#ffaa00';
+                alertAllBtn.textContent = 'Alert All Handsets in Danger';
+                alertAllBtn.addEventListener('click', alertAllInDanger);
+                
+                actionBox.appendChild(dispatchBtn);
+                actionBox.appendChild(checkinBtn);
+                actionBox.appendChild(alertAllBtn);
+                
+                const engineDiv = document.createElement('div');
+                engineDiv.style.cssText = 'font-size: 0.65rem; color: #4b5563; text-align: right; margin-top: 5px;';
+                engineDiv.textContent = `Engine: ${decision.llm_engine}`;
+                
+                container.appendChild(threatSpan);
+                container.appendChild(analysisPara);
+                container.appendChild(recommendationPara);
+                container.appendChild(actionBox);
+                container.appendChild(engineDiv);
+                
+                decisionTarget.innerHTML = '';
+                decisionTarget.appendChild(container);
+            })
+            .catch(err => {
+                decisionTarget.innerHTML = `<div class="empty-state" style="color: #ff3355;">Gemini Gateway Timeout</div>`;
+            });
+        }
+
+        function notifyPolice(id, threat, decision, msg, touristName) {
+            // Text-to-Speech (TTS) Tactical Dispatch Voice synthesis
+            const name = touristName || id;
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(`Warning: Dispatching tactical rescue team to ${name}'s coordinates.`);
+                utterance.rate = 1.0;
+                utterance.pitch = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+
+            fetch('/api/notify_police', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: id,
+                    location: "Goa Coastal Defense Sector 4",
+                    threat_type: threat,
+                    decision: decision,
+                    message: msg
+                })
+            })
+            .then(res => res.json())
+            .then(resData => {
+                alert(`SUCCESS: Local Police team notified on click!\nResponder Team: ${resData.record.responder_unit}`);
+                loadDispatches();
+            })
+            .catch(err => console.error(err));
+        }
+
+        function sendHandsetAlert(id) {
+            fetch('/api/send_handset_alert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tourist_id: id,
+                    message: "🚨 Security Check: Confirm your wellbeing. Respond within 30s or assistance will be dispatched."
+                })
+            })
+            .then(res => res.json())
+            .then(() => {
+                alert(`Check-in message queued for delivery to ${id} via simulated LTE uplink.`);
+            })
+            .catch(err => console.error(err));
+        }
+
+        function alertAllInDanger() {
+            fetch('/api/alert_all_in_danger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: "🚨 CRITICAL WARNING: High-risk anomaly detected in your sector. Assistance dispatched."
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`Broadcast alert delivered to all handsets in danger: [${data.alerted_tourists.join(', ')}]`);
+            })
+            .catch(err => console.error(err));
+        }
+
+        function loadDispatches() {
+            fetch('/api/police_dispatches')
+                .then(res => res.json())
+                .then(data => {
+                    const target = document.getElementById('dispatch-target');
+                    if (data.length === 0) {
+                        target.innerHTML = `<div class="empty-state">No dispatches deployed in this shift.</div>`;
+                        return;
+                    }
+                    target.innerHTML = data.map(item => `
+                        <div class="dispatch-item">
+                            <div class="dispatch-header">
+                                <span style="color: #ff3355;">${item.dispatch_id}</span>
+                                <span style="background: #ff335520; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">${item.status}</span>
+                            </div>
+                            <div style="margin-top: 4px; font-weight: 500;">Unit: ${item.responder_unit}</div>
+                            <div style="margin-top: 4px; font-size: 0.75rem; color: #8a94a6;">${item.message}</div>
+                            <div class="dispatch-meta">
+                                <span>ETA: ${item.eta_minutes} min</span>
+                                <span>${item.timestamp}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        // Initialize loops
+        setInterval(loadData, 2000);
+        setInterval(loadDispatches, 4000);
+        loadData();
+        loadDispatches();
+
+        // --- Interactive Drawing Tools (Geofence & Path Creator) ---
+
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            },
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    drawError: {
+                        color: '#e1e100',
+                        message: '<strong>Oh snap!<strong> you can\'t draw that!'
+                    },
+                    shapeOptions: {
+                        color: '#ffaa00'
+                    }
+                },
+                polyline: {
+                    shapeOptions: {
+                        color: '#00aaff'
+                    }
+                },
+                circle: false,
+                marker: false,
+                circlemarker: false,
+                rectangle: false
+            }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, (event) => {
+            const layer = event.layer;
+            drawnItems.addLayer(layer);
+
+            if (event.layerType === 'polygon') {
+                const latlngs = layer.getLatLngs()[0];
+                const points = latlngs.map(l => [l.lat, l.lng]);
+                fetch('/api/update_geofences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ points })
+                }).then(() => {
+                    alert('Custom Restricted Zone drawn! Tourists entering will trigger HIGH-RISK alerts.');
+                });
+            }
+
+            if (event.layerType === 'polyline') {
+                const latlngs = layer.getLatLngs();
+                const points = latlngs.map(l => [l.lat, l.lng]);
+                if (currentSelected) {
+                    // Check if selected tourist is in privacy mode
+                    fetch('/api/tourists')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data[currentSelected] && data[currentSelected].privacy_mode) {
+                                alert(`Cannot assign route: ${currentSelected} has Location Secrecy ENABLED.`);
+                                drawnItems.removeLayer(layer);
+                                return;
+                            }
+                            fetch('/api/update_path', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ tourist_id: currentSelected, points })
+                            }).then(() => {
+                                alert(`Custom path drawn and assigned to ${currentSelected}!`);
+                            });
+                        });
+                }
+            }
+        });
+
+        document.getElementById('btn-draw-fence').addEventListener('click', () => {
+            // Disable any active drawing tool first
+            if (currentDrawingTool) {
+                currentDrawingTool.disable();
+            }
+            // Create and enable polygon drawing tool
+            currentDrawingTool = new L.Draw.Polygon(map, drawControl.options.polygon);
+            currentDrawingTool.enable();
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-draw-fence').classList.add('active');
+        });
+        
+        document.getElementById('btn-draw-path').addEventListener('click', () => {
+            // Disable any active drawing tool first
+            if (currentDrawingTool) {
+                currentDrawingTool.disable();
+            }
+            // Create and enable polyline drawing tool
+            currentDrawingTool = new L.Draw.Polyline(map, drawControl.options.polyline);
+            currentDrawingTool.enable();
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-draw-path').classList.add('active');
+        });
+
+        document.getElementById('btn-clear-drawings').addEventListener('click', () => {
+            drawnItems.clearLayers();
+            fetch('/api/clear_drawings', { method: 'POST' }).then(() => {
+                alert('All drawings cleared.');
+            });
+        });
+
+        // Optional: highlight tool button on enable/disable
+        map.on(L.Draw.Event.DRAWSTART, () => {
+            document.querySelector('.tool-btn.active')?.classList.add('drawing-active');
+        });
+        map.on(L.Draw.Event.DRAWSTOP, () => {
+            document.querySelector('.tool-btn.active')?.classList.remove('drawing-active');
+            drawControl.disable();
+        });
+
+    </script>
+</body>
+</html>

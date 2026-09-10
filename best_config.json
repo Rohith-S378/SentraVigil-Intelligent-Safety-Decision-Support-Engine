@@ -1,0 +1,15 @@
+{
+  "latent_dim": 8,
+  "hidden_dim": 16,
+  "window_size": 20,
+  "threshold_percentile": 99,
+  "features": [
+    "avg_speed",
+    "inactivity_duration",
+    "route_deviation",
+    "direction_changes",
+    "zone_level",
+    "journey_duration"
+  ],
+  "reconstruction_threshold": 0.45
+}
