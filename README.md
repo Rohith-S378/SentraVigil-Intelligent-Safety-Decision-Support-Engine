@@ -1,6 +1,6 @@
-# TourShield AI — Enterprise Edge-to-Dashboard Security Ecosystem
+# SentraVigil-Intelligent-Safety-Decision-Support-Engine
 
-TourShield AI is an enterprise-grade, zero-latency autonomous threat detection and situational awareness platform built for coastal defense, restricted zone monitoring, and tourist safety. It combines on-device deep learning (GRU-VAE behavioral anomaly detection), simulated LTE edge-to-command broadcasting, Gemini LLM tactical decision support, and a dual-service Node.js / Python architecture.
+SentraVigil is an enterprise-grade, zero-latency autonomous threat detection and situational awareness platform built for coastal defense, restricted zone monitoring, and tourist safety. It combines on-device deep learning (GRU-VAE behavioral anomaly detection), simulated LTE edge-to-command broadcasting, Gemini LLM tactical decision support, and a dual-service Node.js / Python architecture.
 
 ---
 
@@ -28,7 +28,7 @@ TourShield AI is an enterprise-grade, zero-latency autonomous threat detection a
 ---
 ## Model Evaluation
 
-TourShield’s anomaly detector is a GRU-VAE trained on simulated tourist-mobility telemetry. It evaluates rolling windows of 20 timesteps across six behavioural features:
+Sentravigil’s anomaly detector is a GRU-VAE trained on simulated tourist-mobility telemetry. It evaluates rolling windows of 20 timesteps across six behavioural features:
 
 - Average speed
 - Inactivity duration
@@ -98,12 +98,12 @@ For high-severity physical-risk conditions—such as restricted-zone entry, extr
    # Windows PowerShell
    $env:GEMINI_API_KEY="your_api_key_here"
    ```
-   *(Note: If no API key is provided, TourShield automatically switches to its built-in tactical fallback analytical engine, ensuring uninterrupted demo performance).*
+   *(Note: If no API key is provided, Sentravigil automatically switches to its built-in tactical fallback analytical engine, ensuring uninterrupted demo performance).*
 
 3. **Configure the prototype API token (recommended)**:
    ```bash
    # Windows PowerShell
-   $env:TOURSHIELD_API_TOKEN="choose-a-demo-token"
+   $env:Sentravigil_API_TOKEN="choose-a-demo-token"
    ```
    Mutating API routes require this bearer token. The dashboards receive it through their server-rendered meta tag for prototype use; do not use the fallback token outside local demos.
 
