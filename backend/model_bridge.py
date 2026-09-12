@@ -1,4 +1,4 @@
-"""Line-delimited JSON bridge for TourShield's trained GRU-VAE ONNX model."""
+"""Line-delimited JSON bridge for Sentravigil's trained GRU-VAE ONNX model."""
 import json
 import os
 import sys
