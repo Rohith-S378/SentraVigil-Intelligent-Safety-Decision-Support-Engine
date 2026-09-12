@@ -1,7 +1,7 @@
 {
-  "name": "tourshield-ai-prototype",
+  "name": "Sentravigil-ai-prototype",
   "version": "1.0.0",
-  "description": "TourShield AI Edge-to-Dashboard Prototype",
+  "description": "Sentravigil AI Edge-to-Dashboard Prototype",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
